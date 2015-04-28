@@ -9,9 +9,7 @@ import(
 	"log"
 	"time"
 	"strings"
-	"fmt"
 )
-
 
 func main() {
 	// initialize the DbMap
@@ -22,7 +20,7 @@ func main() {
 	err := dbmap.TruncateTables()
 	checkErr(err, "TruncateTables failed")
 
-	readLines("all_products.txt", dbmap)
+	readLines("all_products.utf8.txt", dbmap)
 }
 
 type Audible struct {
@@ -64,8 +62,7 @@ func readLines(path string, dbmap *gorp.DbMap) {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
-		arr := strings.Split(line, "\t")
-		fmt.Printf(arr[0])
+		arr := strings.Split(strings.Replace(line, "¿", "-", -1), "\t")
 		a := newAudible(arr)
 
 		// insert rows - auto increment PKs will be set properly after the insert
@@ -106,7 +103,7 @@ func newAudible(line []string) Audible {
 func initDb() *gorp.DbMap {
 	// connect to db using standard Go database/sql API
 	// use whatever database/sql driver you wish
-	db, err := sql.Open("postgres", "postgres://audiotime:audiotime@localhost/audiotime?sslmode=disable")
+	db, err := sql.Open("postgres", "postgres://audiotime:audiotime@localhost:5434/audiotime?sslmode=disable")
 	checkErr(err, "postgres.Open failed")
 
 	// construct a gorp DbMap
