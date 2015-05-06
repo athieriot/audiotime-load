@@ -9,6 +9,7 @@ import(
 	"log"
 	"time"
 	"strings"
+	iconv "github.com/djimenez/iconv-go"
 )
 
 func main() {
@@ -20,12 +21,18 @@ func main() {
 	err := dbmap.TruncateTables()
 	checkErr(err, "TruncateTables failed")
 
-	readLines("all_products.utf8.txt", dbmap)
+	readLines("all_products.txt", dbmap)
+
+  _, err = dbmap.Exec("DROP INDEX IF EXISTS audibles_name_trigram_idx;")
+  checkErr(err, "Drop trgm index failed")
+
+  _, err = dbmap.Exec("CREATE INDEX audibles_name_trigram_idx ON audibles USING gist(name gist_trgm_ops);")
+  checkErr(err, "Create trgm indexfailed")
 }
 
 type Audible struct {
 	// db tag lets you specify the column name if it differs from the struct field
-	Id      				int64 `db:"post_id"`
+	Id      				int64 `db:"audible_id"`
 	Created 				int64
 	LastUpdated 			string
 	Name	   				string
@@ -61,8 +68,8 @@ func readLines(path string, dbmap *gorp.DbMap) {
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		line := scanner.Text()
-		arr := strings.Split(strings.Replace(line, "¿", "-", -1), "\t")
+		line,_ := iconv.ConvertString(scanner.Text(), "iso-8859-1", "utf-8")
+		arr := strings.Split(line, "\t")
 		a := newAudible(arr)
 
 		// insert rows - auto increment PKs will be set properly after the insert
@@ -103,7 +110,7 @@ func newAudible(line []string) Audible {
 func initDb() *gorp.DbMap {
 	// connect to db using standard Go database/sql API
 	// use whatever database/sql driver you wish
-	db, err := sql.Open("postgres", "postgres://audiotime:audiotime@localhost:5434/audiotime?sslmode=disable")
+	db, err := sql.Open("postgres", "postgres://audiotime:audiotime@db:5432/audiotime?sslmode=disable")
 	checkErr(err, "postgres.Open failed")
 
 	// construct a gorp DbMap
